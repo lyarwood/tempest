@@ -97,6 +97,10 @@ class BaseV2ComputeTest(api_version_utils.BaseMicroversionTest,
         cls.security_group_default_rules_client = (
             cls.os_primary.security_group_default_rules_client)
         cls.versions_client = cls.os_primary.compute_versions_client
+        cls.admin_volume_types_client = cls.os_admin.volume_types_v2_client
+        cls.admin_encryption_types_client =\
+            cls.os_admin.encryption_types_v2_client
+
         if CONF.service_available.cinder:
             cls.volumes_client = cls.os_primary.volumes_client_latest
         if CONF.service_available.glance:
@@ -425,6 +429,33 @@ class BaseV2ComputeTest(api_version_utils.BaseMicroversionTest,
         super(BaseV2ComputeTest, self).setUp()
         self.useFixture(api_microversion_fixture.APIMicroversionFixture(
             self.request_microversion))
+
+    @classmethod
+    def create_encryption_type(self, client=None, type_id=None, provider=None,
+                               key_size=None, cipher=None,
+                               control_location=None):
+        if not client:
+            client = self.admin_encryption_types_client
+        if not type_id:
+            volume_type = self.create_volume_type()
+            type_id = volume_type['id']
+        LOG.debug("Creating an encryption type for volume type: %s", type_id)
+        client.create_encryption_type(
+            type_id, provider=provider, key_size=key_size, cipher=cipher,
+            control_location=control_location)['encryption']
+
+    @classmethod
+    def create_encrypted_volume(self, encryption_provider, volume_type,
+                                key_size=256, cipher='aes-xts-plain64',
+                                control_location='front-end'):
+        volume_type = self.create_volume_type(name=volume_type)
+        self.create_encryption_type(type_id=volume_type['id'],
+                                    provider=encryption_provider,
+                                    key_size=key_size,
+                                    cipher=cipher,
+                                    control_location=control_location)
+        return self.create_volume(volume_type=volume_type['name'])
+
 
     @classmethod
     def create_volume(cls, image_ref=None, **kwargs):

@@ -90,7 +90,8 @@ class LiveMigrationTest(base.BaseV2ComputeAdminTest):
         self.assertEqual(target_host, self.get_host_for_server(server_id),
                          msg)
 
-    def _test_live_migration(self, state='ACTIVE', volume_backed=False):
+    def _test_live_migration(self, state='ACTIVE', volume_backed=False,
+                             attach_encrypted_vol=False):
         """Tests live migration between two hosts.
 
         Requires CONF.compute_feature_enabled.live_migration to be True.
@@ -102,8 +103,14 @@ class LiveMigrationTest(base.BaseV2ComputeAdminTest):
                               volume_backed, *block* migration is not used.
         """
         # Live migrate an instance to another host
-        server_id = self.create_test_server(wait_until="ACTIVE",
-                                            volume_backed=volume_backed)['id']
+        server = self.create_test_server(wait_until="ACTIVE",
+                                         volume_backed=volume_backed)
+        server_id = server['id']
+
+        if attach_encrypted_vol:
+            encrypted_vol = self.create_encrypted_volume('luks', 'luks')
+            self.attach_volume(server, encrypted_vol, device='/dev/xvdb')
+
         source_host = self.get_host_for_server(server_id)
         destination_host = self.get_host_other_than(server_id)
 
@@ -139,6 +146,12 @@ class LiveMigrationTest(base.BaseV2ComputeAdminTest):
     @utils.services('volume')
     def test_volume_backed_live_migration(self):
         self._test_live_migration(volume_backed=True)
+
+    @decorators.idempotent_id('b4a74037-ddc3-4a6b-ab4c-095536482bc8')
+    @utils.services('volume')
+    def test_encrypted_volume_backed_live_migration(self):
+        self._test_live_miration(volume_backend=True,
+                                 attach_encrypted_vol=True)
 
 
 class LiveMigrationRemoteConsolesV26Test(LiveMigrationTest):

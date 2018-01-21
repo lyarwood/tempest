@@ -140,34 +140,6 @@ class LiveMigrationTest(base.BaseV2ComputeAdminTest):
     def test_volume_backed_live_migration(self):
         self._test_live_migration(volume_backed=True)
 
-    @decorators.idempotent_id('e19c0cc6-6720-4ed8-be83-b6603ed5c812')
-    @testtools.skipIf(not CONF.compute_feature_enabled.
-                      block_migration_for_live_migration,
-                      'Block Live migration not available')
-    @testtools.skipIf(not CONF.compute_feature_enabled.
-                      block_migrate_cinder_iscsi,
-                      'Block Live migration not configured for iSCSI')
-    def test_iscsi_volume(self):
-        server = self.create_test_server(wait_until="ACTIVE")
-        server_id = server['id']
-        target_host = self.get_host_other_than(server_id)
-
-        volume = self.create_volume()
-
-        # Attach the volume to the server
-        self.attach_volume(server, volume, device='/dev/xvdb')
-        server = self.admin_servers_client.show_server(server_id)['server']
-        volume_id1 = server["os-extended-volumes:volumes_attached"][0]["id"]
-        self._migrate_server_to(server_id, target_host)
-        waiters.wait_for_server_status(self.servers_client,
-                                       server_id, 'ACTIVE')
-
-        server = self.admin_servers_client.show_server(server_id)['server']
-        volume_id2 = server["os-extended-volumes:volumes_attached"][0]["id"]
-
-        self.assertEqual(target_host, self.get_host_for_server(server_id))
-        self.assertEqual(volume_id1, volume_id2)
-
 
 class LiveMigrationRemoteConsolesV26Test(LiveMigrationTest):
     min_microversion = '2.6'
